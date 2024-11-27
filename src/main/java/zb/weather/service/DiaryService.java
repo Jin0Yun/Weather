@@ -11,6 +11,7 @@ import zb.weather.repository.DiaryRepository;
 
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -35,6 +36,28 @@ public class DiaryService {
 
         Diary nowDiary = buildDiary(date, text, parsedWeather);
         diaryRepository.save(nowDiary);
+    }
+
+    public List<Diary> readDiary(LocalDate date) {
+        return diaryRepository.findAllByDate(date);
+    }
+
+    public List<Diary> readDiaries(LocalDate startDate, LocalDate endDate) {
+        return diaryRepository.findAllByDateBetween(startDate, endDate);
+    }
+
+    public void updateDiary(LocalDate date, String text) {
+        Diary nowDiary = diaryRepository.getFirstByDate(date);
+        nowDiary.setText(text);
+        diaryRepository.save(nowDiary);
+    }
+
+    public void deleteDiary(LocalDate date) {
+        List<Diary> diaries = diaryRepository.findAllByDate(date);
+        if (diaries.isEmpty()) {
+            throw new IllegalArgumentException("No diaries found for the specified date");
+        }
+        diaryRepository.deleteAllByDate(date);
     }
 
     private Map<String, Object> parseWeather(String jsonString) {
