@@ -3,13 +3,12 @@ package zb.weather.controller;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import zb.weather.domain.Diary;
 import zb.weather.service.DiaryService;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 public class DiaryController {
@@ -32,5 +31,20 @@ public class DiaryController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Unexpected error occurred");
         }
+    }
+
+    @GetMapping("/read/diary")
+    public List<Diary> readDiary(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return diaryService.readDiary(date);
+    }
+
+    @GetMapping("/read/diaries")
+    public List<Diary> readDiaries(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        return diaryService.readDiaries(startDate, endDate);
     }
 }
