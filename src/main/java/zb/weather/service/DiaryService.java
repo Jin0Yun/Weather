@@ -46,6 +46,12 @@ public class DiaryService {
         return diaryRepository.findAllByDateBetween(startDate, endDate);
     }
 
+    public void updateDiary(LocalDate date, String text) {
+        Diary nowDiary = diaryRepository.getFirstByDate(date);
+        nowDiary.setText(text);
+        diaryRepository.save(nowDiary);
+    }
+
     private Map<String, Object> parseWeather(String jsonString) {
         if (jsonString == null || jsonString.isEmpty()) {
             return null;
