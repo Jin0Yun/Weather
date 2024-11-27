@@ -52,6 +52,14 @@ public class DiaryService {
         diaryRepository.save(nowDiary);
     }
 
+    public void deleteDiary(LocalDate date) {
+        List<Diary> diaries = diaryRepository.findAllByDate(date);
+        if (diaries.isEmpty()) {
+            throw new IllegalArgumentException("No diaries found for the specified date");
+        }
+        diaryRepository.deleteAllByDate(date);
+    }
+
     private Map<String, Object> parseWeather(String jsonString) {
         if (jsonString == null || jsonString.isEmpty()) {
             return null;
