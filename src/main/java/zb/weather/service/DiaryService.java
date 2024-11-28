@@ -4,18 +4,20 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import zb.weather.WeatherApplication;
 import zb.weather.domain.DateWeather;
 import zb.weather.domain.Diary;
 import zb.weather.repository.DateWeatherRepository;
 import zb.weather.repository.DiaryRepository;
 
 import java.time.LocalDate;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ public class DiaryService {
     private final DiaryRepository diaryRepository;
     private final WeatherApiClient weatherApiClient;
     private final DateWeatherRepository dateWeatherRepository;
+    private static final Logger logger = LoggerFactory.getLogger(WeatherApplication.class);
 
     public DiaryService(DiaryRepository diaryRepository, WeatherApiClient weatherApiClient, DateWeatherRepository dateWeatherRepository) {
         this.diaryRepository = diaryRepository;
@@ -38,12 +41,19 @@ public class DiaryService {
     @Transactional
     @Scheduled(cron = "0 0 1 * * *")
     public void saveWeatherDate () {
-        dateWeatherRepository.save(getWeatherFromApi());
+        try {
+            dateWeatherRepository.save(getWeatherFromApi());
+            logger.info("saved weather data");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to saved weather data");
+        }
     }
 
     private DateWeather getWeatherFromApi() {
+        logger.info("Fetching weather data from API");
         String weatherData = weatherApiClient.getWeatherData();
         Map<String, Object> parsedWeather = parseWeather(weatherData);
+
         DateWeather dateWeather = new DateWeather();
         dateWeather.setDate(LocalDate.now());
         dateWeather.setWeather(parsedWeather.get("main").toString());
@@ -54,13 +64,18 @@ public class DiaryService {
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public void createDiary(LocalDate date, String text) {
-        DateWeather dateWeather = getDateWeather(date);
-        if (dateWeather == null) {
-            throw new IllegalArgumentException("Failed to parse weather data");
+        try {
+            DateWeather dateWeather = getDateWeather(date);
+            if (dateWeather == null) {
+                throw new IllegalArgumentException("Failed to parse weather data");
+            }
+            Diary nowDiary = buildDiary(date, text, dateWeather);
+            diaryRepository.save(nowDiary);
+            logger.info("finished to create diary");
+        } catch (Exception e) {
+            logger.error("failed to createDiary: ", e);
+            throw new RuntimeException("Failed to parse createDiary", e);
         }
-
-        Diary nowDiary = buildDiary(date, text, dateWeather);
-        diaryRepository.save(nowDiary);
     }
 
     private DateWeather getDateWeather(LocalDate date) {
@@ -84,17 +99,32 @@ public class DiaryService {
 
     @Transactional
     public void updateDiary(LocalDate date, String text) {
-        Diary nowDiary = diaryRepository.getFirstByDate(date);
-        nowDiary.setText(text);
-        diaryRepository.save(nowDiary);
+        try {
+            Diary nowDiary = diaryRepository.getFirstByDate(date);
+            if (nowDiary == null) {
+                throw new IllegalArgumentException("Failed to parse weather data");
+            }
+            nowDiary.setText(text);
+            diaryRepository.save(nowDiary);
+            logger.info("finished to update diary");
+        } catch (Exception e) {
+            logger.error("failed to update diary: ", e);
+        }
     }
+
     @Transactional
     public void deleteDiary(LocalDate date) {
-        List<Diary> diaries = diaryRepository.findAllByDate(date);
-        if (diaries.isEmpty()) {
-            throw new IllegalArgumentException("No diaries found for the specified date");
+        try {
+            List<Diary> diaries = diaryRepository.findAllByDate(date);
+            if (diaries.isEmpty()) {
+                throw new IllegalArgumentException("No diaries found for the specified date");
+            }
+            diaryRepository.deleteAllByDate(date);
+            logger.info("finished to delete diary");
+        } catch (Exception e) {
+            logger.error("failed to delete diary: ", e);
         }
-        diaryRepository.deleteAllByDate(date);
+
     }
 
     private Map<String, Object> parseWeather(String jsonString) {
