@@ -6,6 +6,8 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import zb.weather.domain.Diary;
 import zb.weather.repository.DiaryRepository;
 
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Transactional(readOnly = true)
 public class DiaryService {
     @Value("${openweathermap.key}")
     private String apiKey;
@@ -25,7 +28,7 @@ public class DiaryService {
         this.diaryRepository = diaryRepository;
         this.weatherApiClient = weatherApiClient;
     }
-
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public void createDiary(LocalDate date, String text) {
         String weatherData = weatherApiClient.getWeatherData();
         Map<String, Object> parsedWeather = parseWeather(weatherData);
@@ -38,20 +41,23 @@ public class DiaryService {
         diaryRepository.save(nowDiary);
     }
 
+    @Transactional(readOnly = true)
     public List<Diary> readDiary(LocalDate date) {
         return diaryRepository.findAllByDate(date);
     }
 
+    @Transactional(readOnly = true)
     public List<Diary> readDiaries(LocalDate startDate, LocalDate endDate) {
         return diaryRepository.findAllByDateBetween(startDate, endDate);
     }
 
+    @Transactional
     public void updateDiary(LocalDate date, String text) {
         Diary nowDiary = diaryRepository.getFirstByDate(date);
         nowDiary.setText(text);
         diaryRepository.save(nowDiary);
     }
-
+    @Transactional
     public void deleteDiary(LocalDate date) {
         List<Diary> diaries = diaryRepository.findAllByDate(date);
         if (diaries.isEmpty()) {
